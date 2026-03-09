@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>RIOX OTP</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080d1a;
+    --card: #0d1526;
+    --teal: #00d4c8;
+    --teal2: #00a89e;
+    --accent: #4af0e8;
+    --gold: #f5c842;
+    --text: #c8e4ee;
+    --muted: #4a6a7a;
+    --border: rgba(0,212,200,0.15);
+    --glow: 0 0 40px rgba(0,212,200,0.18);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Exo 2', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    color: var(--text);
+  }
+
+  /* ── PARTICLES BG ── */
+  #particles { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+  .particle {
+    position:absolute; border-radius:50%;
+    background: var(--teal); opacity:0;
+    animation: floatUp linear infinite;
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(100vh) scale(0); opacity:0; }
+    10%  { opacity:0.4; }
+    90%  { opacity:0.15; }
+    100% { transform: translateY(-10vh) scale(1); opacity:0; }
+  }
+
+  /* ── SPLASH SCREEN ── */
+  #splash {
+    position: fixed; inset:0; z-index:100;
+    background: var(--bg);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  #splash.hide { opacity:0; transform: scale(1.05); pointer-events:none; }
+  .splash-logo {
+    width:90px; height:90px; border-radius:22px;
+    border: 2px solid var(--teal);
+    box-shadow: 0 0 40px rgba(0,212,200,0.5), 0 0 80px rgba(0,212,200,0.2);
+    overflow:hidden;
+    animation: logoPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes logoPulse {
+    0%,100%{ box-shadow: 0 0 40px rgba(0,212,200,0.5), 0 0 80px rgba(0,212,200,0.2); }
+    50%{ box-shadow: 0 0 60px rgba(0,212,200,0.8), 0 0 100px rgba(0,212,200,0.35); }
+  }
+  .splash-logo img { width:100%; height:100%; object-fit:cover; }
+  .splash-name {
+    font-family:'Rajdhani',sans-serif; font-size:42px; font-weight:700;
+    background: linear-gradient(90deg,#fff,var(--accent),var(--teal2));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    letter-spacing:3px;
+  }
+  .splash-sub { font-size:12px; color:var(--muted); letter-spacing:3px; text-transform:uppercase; font-family:'Share Tech Mono',monospace; }
+  .splash-bar-wrap { width:180px; height:3px; background:rgba(255,255,255,0.07); border-radius:2px; overflow:hidden; margin-top:8px; }
+  .splash-bar { height:100%; width:0%; background:linear-gradient(90deg,var(--teal2),var(--accent)); border-radius:2px; transition:width 0.05s linear; }
+
+  /* ── MAIN APP ── */
+  #app { position:relative; z-index:1; min-height:100vh; display:none; opacity:0; transition:opacity 0.5s ease; }
+  #app.show { display:block; }
+  #app.visible { opacity:1; }
+
+  /* ── TOP NAV ── */
+  .topnav {
+    position:sticky; top:0; z-index:50;
+    background: rgba(8,13,26,0.92);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 12px 18px;
+  }
+  .nav-brand { display:flex; align-items:center; gap:10px; }
+  .nav-logo { width:34px; height:34px; border-radius:9px; border:1.5px solid rgba(0,212,200,0.4); overflow:hidden; }
+  .nav-logo img { width:100%; height:100%; object-fit:cover; }
+  .nav-title { font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#fff; letter-spacing:1px; }
+  .nav-title span { color:var(--teal); }
+  .nav-status { display:flex; align-items:center; gap:6px; }
+  .status-dot { width:7px; height:7px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); animation:blink 1.4s infinite; }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .status-txt { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--teal); letter-spacing:1px; }
+
+  /* ── TABS ── */
+  .tabs {
+    display:flex; gap:0;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid var(--border);
+    padding: 0 18px;
+  }
+  .tab {
+    flex:1; padding:12px 0; text-align:center;
+    font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase;
+    color:var(--muted); cursor:pointer;
+    border-bottom:2px solid transparent;
+    transition:color 0.2s, border-color 0.2s;
+    font-family:'Rajdhani',sans-serif; font-size:14px;
+  }
+  .tab.active { color:var(--teal); border-bottom-color:var(--teal); }
+
+  /* ── PAGES ── */
+  .page { display:none; padding:20px 18px 100px; animation:pageIn 0.3s ease both; }
+  .page.active { display:block; }
+  @keyframes pageIn { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:none;} }
+
+  /* ── HOME PAGE ── */
+  .hero-card {
+    background: linear-gradient(135deg, rgba(0,212,200,0.1) 0%, rgba(0,100,120,0.07) 100%);
+    border:1.5px solid rgba(0,212,200,0.22);
+    border-radius:18px; padding:24px 20px; margin-bottom:18px;
+    position:relative; overflow:hidden;
+  }
+  .hero-card::before {
+    content:''; position:absolute; top:-40px; right:-40px;
+    width:160px; height:160px; border-radius:50%;
+    background: radial-gradient(circle, rgba(0,212,200,0.12), transparent 70%);
+  }
+  .hero-tag {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(0,212,200,0.1); border:1px solid rgba(0,212,200,0.3);
+    border-radius:20px; padding:4px 12px;
+    font-size:10px; color:var(--teal); letter-spacing:1.5px; text-transform:uppercase;
+    font-family:'Share Tech Mono',monospace; margin-bottom:12px;
+  }
+  .hero-h { font-family:'Rajdhani',sans-serif; font-size:30px; font-weight:700; color:#fff; line-height:1.1; margin-bottom:8px; }
+  .hero-h span { color:var(--teal); }
+  .hero-p { font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:20px; }
+
+  /* STATS ROW */
+  .stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px; }
+  .stat-box {
+    background:rgba(0,212,200,0.05); border:1px solid var(--border);
+    border-radius:12px; padding:14px 10px; text-align:center;
+  }
+  .stat-val { font-family:'Rajdhani',sans-serif; font-size:22px; font-weight:700; color:var(--teal); }
+  .stat-lbl { font-size:10px; color:var(--muted); margin-top:2px; letter-spacing:0.5px; }
+
+  /* FEATURE CARDS */
+  .section-title {
+    font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700;
+    color:var(--teal); letter-spacing:2px; text-transform:uppercase;
+    margin-bottom:12px; display:flex; align-items:center; gap:8px;
+  }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+  .features { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+  .feat {
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+    border-radius:13px; padding:14px 12px;
+    transition:background 0.2s, border-color 0.2s, transform 0.15s;
+    cursor:default;
+  }
+  .feat:active { transform:scale(0.97); }
+  .feat-icon { font-size:22px; margin-bottom:8px; }
+  .feat-title { font-size:13px; font-weight:700; color:#fff; margin-bottom:3px; }
+  .feat-desc { font-size:11px; color:var(--muted); line-height:1.4; }
+
+  /* ── CTA BUTTON ── */
+  .cta-btn {
+    width:100%; padding:16px;
+    background:linear-gradient(90deg,#00d4c8,#00a89e);
+    color:#000; font-family:'Rajdhani',sans-serif;
+    font-size:18px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+    border:none; border-radius:14px; cursor:pointer;
+    box-shadow:0 0 30px rgba(0,212,200,0.4);
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    animation:ctaGlow 2.5s ease-in-out infinite;
+    transition:transform 0.15s;
+  }
+  .cta-btn:active { transform:scale(0.97); }
+  @keyframes ctaGlow {
+    0%,100%{ box-shadow:0 0 30px rgba(0,212,200,0.4); }
+    50%{ box-shadow:0 0 50px rgba(0,212,200,0.7), 0 0 80px rgba(0,212,200,0.2); }
+  }
+  .cta-note { text-align:center; font-size:11px; color:var(--muted); margin-top:8px; font-family:'Share Tech Mono',monospace; }
+
+  /* ── HOW TO USE PAGE ── */
+  .steps { display:flex; flex-direction:column; gap:12px; }
+  .step {
+    display:flex; gap:14px; align-items:flex-start;
+    background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05);
+    border-radius:14px; padding:16px 14px;
+    animation:pageIn 0.35s ease both;
+  }
+  .step:nth-child(1){animation-delay:0.05s}
+  .step:nth-child(2){animation-delay:0.1s}
+  .step:nth-child(3){animation-delay:0.15s}
+  .step:nth-child(4){animation-delay:0.2s}
+  .step-num {
+    width:36px; height:36px; flex-shrink:0;
+    background:linear-gradient(135deg,var(--teal),var(--teal2));
+    border-radius:10px; display:flex; align-items:center; justify-content:center;
+    font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; color:#000;
+    box-shadow:0 0 14px rgba(0,212,200,0.4);
+  }
+  .step-body { flex:1; }
+  .step-title { font-size:14px; font-weight:700; color:#fff; margin-bottom:4px; }
+  .step-desc { font-size:12px; color:var(--muted); line-height:1.5; }
+  .step-code {
+    display:inline-block; margin-top:6px;
+    font-family:'Share Tech Mono',monospace; font-size:12px;
+    background:rgba(0,212,200,0.1); border:1px solid rgba(0,212,200,0.25);
+    color:var(--accent); padding:4px 10px; border-radius:7px;
+  }
+  .step-done { color:var(--teal); font-size:18px; margin-top:2px; flex-shrink:0; }
+
+  /* ── SHARE PAGE ── */
+  .share-card {
+    background:linear-gradient(135deg,rgba(0,212,200,0.08),rgba(0,0,0,0.2));
+    border:1.5px solid rgba(0,212,200,0.2); border-radius:18px;
+    padding:26px 20px; text-align:center; margin-bottom:18px;
+  }
+  .share-title { font-family:'Rajdhani',sans-serif; font-size:24px; font-weight:700; color:#fff; margin-bottom:8px; }
+  .share-sub { font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:22px; }
+  .share-btns { display:flex; flex-direction:column; gap:10px; }
+  .share-btn {
+    padding:14px; border-radius:12px; border:1.5px solid;
+    font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:700;
+    letter-spacing:1px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:transform 0.15s, box-shadow 0.15s;
+  }
+  .share-btn:active { transform:scale(0.97); }
+  .share-btn.primary { background:linear-gradient(90deg,#00d4c8,#00a89e); color:#000; border-color:transparent; box-shadow:0 0 20px rgba(0,212,200,0.3); }
+  .share-btn.secondary { background:transparent; color:var(--teal); border-color:rgba(0,212,200,0.3); }
+  .copy-toast {
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--teal); color:#000; font-family:'Rajdhani',sans-serif;
+    font-size:14px; font-weight:700; padding:10px 22px; border-radius:30px;
+    opacity:0; transition:opacity 0.3s, transform 0.3s; z-index:200; pointer-events:none;
+    white-space:nowrap;
+  }
+  .copy-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ── FAQ PAGE ── */
+  .faq-item {
+    background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
+    border-radius:13px; margin-bottom:10px; overflow:hidden;
+    animation:pageIn 0.3s ease both;
+  }
+  .faq-q {
+    padding:15px 16px; cursor:pointer;
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:14px; font-weight:600; color:#fff;
+    transition:background 0.2s;
+  }
+  .faq-q:active { background:rgba(0,212,200,0.05); }
+  .faq-arrow { color:var(--teal); font-size:16px; transition:transform 0.25s; }
+  .faq-item.open .faq-arrow { transform:rotate(180deg); }
+  .faq-a {
+    max-height:0; overflow:hidden;
+    font-size:12px; color:var(--muted); line-height:1.7;
+    transition:max-height 0.3s ease, padding 0.3s ease;
+    padding:0 16px;
+  }
+  .faq-item.open .faq-a { max-height:200px; padding:0 16px 15px; }
+
+  /* ── BOTTOM NAV ── */
+  .bottomnav {
+    position:fixed; bottom:0; left:0; right:0; z-index:50;
+    background:rgba(8,13,26,0.96); backdrop-filter:blur(14px);
+    border-top:1px solid var(--border);
+    display:flex; padding:8px 0 max(8px, env(safe-area-inset-bottom));
+  }
+  .bnav-item {
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:6px 0; cursor:pointer; transition:color 0.2s;
+    color:var(--muted);
+  }
+  .bnav-item.active { color:var(--teal); }
+  .bnav-icon { font-size:20px; }
+  .bnav-label { font-size:10px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; font-family:'Rajdhani',sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- PARTICLES -->
+<div id="particles"></div>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-logo">
+    <img src="https://i.ibb.co/placeholder/logo.png" alt="RIOX" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#00d4c8,#00a89e);font-family:Rajdhani,sans-serif;font-size:28px;font-weight:700;color:#000;\'>R</div>'">
+  </div>
+  <div class="splash-name">RIOX OTP</div>
+  <div class="splash-sub">Initializing secure connection...</div>
+  <div class="splash-bar-wrap"><div class="splash-bar" id="splashBar"></div></div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- TOP NAV -->
+  <div class="topnav">
+    <div class="nav-brand">
+      <div class="nav-logo">
+        <img src="https://i.ibb.co/placeholder/logo.png" alt="R" onerror="this.style.display='none';this.parentElement.style.background='linear-gradient(135deg,#00d4c8,#00a89e)';this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:#000;\'>R</div>'">
+      </div>
+      <div class="nav-title"><span>RIOX</span> OTP</div>
+    </div>
+    <div class="nav-status">
+      <div class="status-dot"></div>
+      <div class="status-txt">LIVE</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('home',this)">🏠 Home</div>
+    <div class="tab" onclick="switchTab('how',this)">📖 Guide</div>
+    <div class="tab" onclick="switchTab('share',this)">🔗 Share</div>
+    <div class="tab" onclick="switchTab('faq',this)">❓ FAQ</div>
+  </div>
+
+  <!-- ══ HOME PAGE ══ -->
+  <div class="page active" id="page-home">
+    <div class="hero-card">
+      <div class="hero-tag"><span style="width:6px;height:6px;border-radius:50%;background:var(--teal);display:inline-block;box-shadow:0 0 6px var(--teal);animation:blink 1.4s infinite;"></span> Now Live</div>
+      <div class="hero-h">Skip the<br><span>Personal Number</span></div>
+      <div class="hero-p">Receive OTP codes instantly using virtual numbers — anonymous, fast, and zero hassle.</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-val">⚡</div>
+        <div class="stat-lbl">Instant OTP</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">🔒</div>
+        <div class="stat-lbl">Anonymous</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val">24/7</div>
+        <div class="stat-lbl">Online</div>
+      </div>
+    </div>
+
+    <div class="section-title">Features</div>
+    <div class="features">
+      <div class="feat">
+        <div class="feat-icon">⚡</div>
+        <div class="feat-title">Instant Codes</div>
+        <div class="feat-desc">OTP delivered in seconds, every time</div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🔒</div>
+        <div class="feat-title">100% Private</div>
+        <div class="feat-desc">Your real number stays hidden always</div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🌐</div>
+        <div class="feat-title">Any Platform</div>
+        <div class="feat-desc">Works with WhatsApp, apps & more</div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🤖</div>
+        <div class="feat-title">Bot Powered</div>
+        <div class="feat-desc">Automated & available around the clock</div>
+      </div>
+    </div>
+
+    <button class="cta-btn" onclick="openBot()">
+      🚀 <span>Launch RIOX OTP Bot</span> →
+    </button>
+    <div class="cta-note">Opens @airdro12pbot on Telegram</div>
+  </div>
+
+  <!-- ══ HOW TO USE PAGE ══ -->
+  <div class="page" id="page-how">
+    <div class="section-title" style="margin-bottom:18px;">Step-by-Step Guide</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Open the Bot</div>
+          <div class="step-desc">Tap the button below or search on Telegram</div>
+          <div class="step-code">@airdro12pbot</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Pick a Virtual Number</div>
+          <div class="step-desc">Choose from available numbers shown in the bot — multiple options available</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Enter it in Your App</div>
+          <div class="step-desc">Paste the virtual number into the app or website that needs OTP verification</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Receive OTP Instantly ✅</div>
+          <div class="step-desc">Your OTP code appears in the bot within seconds. Copy and use it — done!</div>
+        </div>
+        <div class="step-done">✓</div>
+      </div>
+    </div>
+
+    <br>
+    <button class="cta-btn" onclick="openBot()">
+      🤖 <span>Open Bot Now</span> →
+    </button>
+    <div class="cta-note" style="margin-top:8px;">Takes less than 60 seconds</div>
+  </div>
+
+  <!-- ══ SHARE PAGE ══ -->
+  <div class="page" id="page-share">
+    <div class="share-card">
+      <div style="font-size:44px;margin-bottom:12px;">📣</div>
+      <div class="share-title">Spread the Word!</div>
+      <div class="share-sub">Know someone who needs easy OTP verification? Share RIOX OTP with your friends and community.</div>
+    </div>
+
+    <div class="share-btns">
+      <button class="share-btn primary" onclick="shareBot()">
+        📤 Share RIOX OTP with Friends
+      </button>
+      <button class="share-btn secondary" onclick="copyLink()">
+        🔗 Copy Bot Link
+      </button>
+      <button class="share-btn secondary" onclick="openBot()">
+        🤖 Open Bot Directly
+      </button>
+    </div>
+
+    <br>
+    <div class="section-title">Bot Info</div>
+    <div style="background:rgba(0,212,200,0.05);border:1px solid var(--border);border-radius:13px;padding:16px;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--teal);margin-bottom:8px;">@airdro12pbot</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;">Official RIOX OTP Telegram bot. Instant virtual number OTP service — anonymous and free to try.</div>
+    </div>
+  </div>
+
+  <!-- ══ FAQ PAGE ══ -->
+  <div class="page" id="page-faq">
+    <div class="section-title" style="margin-bottom:16px;">Frequently Asked</div>
+
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-q">What is RIOX OTP? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">RIOX OTP is a Telegram-based service that provides you with virtual phone numbers to receive OTP codes — without using your personal number.</div>
+    </div>
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-q">Is it free to use? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">You can try the platform for free. Open the bot @airdro12pbot to explore available options and pricing.</div>
+    </div>
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-q">Which apps does it work with? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">RIOX OTP works with most popular platforms including WhatsApp, Telegram, and other apps requiring SMS OTP verification.</div>
+    </div>
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-q">How fast is OTP delivery? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">OTP codes are typically delivered within seconds of being sent by the verification platform.</div>
+    </div>
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-q">Is my identity safe? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">Yes. RIOX OTP uses virtual numbers so your real phone number is never exposed or shared with any third-party app.</div>
+    </div>
+    <div class="faq-item" onclick="toggleFaq(this)">
+      <div class="faq-q">How do I get started? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">Simply open @airdro12pbot on Telegram, select a number, and use it for your OTP. Check the Guide tab for detailed steps.</div>
+    </div>
+
+    <br>
+    <button class="cta-btn" onclick="openBot()">
+      🚀 <span>Try It Now</span> →
+    </button>
+  </div>
+
+</div><!-- /app -->
+
+<!-- COPY TOAST -->
+<div class="copy-toast" id="toast">✅ Link Copied!</div>
+
+<script>
+// ── TELEGRAM INIT ──
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  tg.setHeaderColor('#080d1a');
+  tg.setBackgroundColor('#080d1a');
+}
+
+// ── PARTICLES ──
+const pContainer = document.getElementById('particles');
+for (let i = 0; i < 18; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  const size = Math.random() * 3 + 1;
+  p.style.cssText = `
+    width:${size}px; height:${size}px;
+    left:${Math.random()*100}%;
+    animation-duration:${8+Math.random()*12}s;
+    animation-delay:${Math.random()*10}s;
+    opacity:${Math.random()*0.4};
+  `;
+  pContainer.appendChild(p);
+}
+
+// ── SPLASH ──
+const bar = document.getElementById('splashBar');
+let prog = 0;
+const fill = setInterval(() => {
+  prog += Math.random() * 4 + 1;
+  if (prog >= 100) { prog = 100; clearInterval(fill); }
+  bar.style.width = prog + '%';
+}, 40);
+
+setTimeout(() => {
+  document.getElementById('splash').classList.add('hide');
+  const app = document.getElementById('app');
+  app.style.display = 'block';
+  setTimeout(() => app.classList.add('visible'), 50);
+  setTimeout(() => app.classList.add('show'), 50);
+}, 2200);
+
+// ── TAB SWITCHING ──
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('page-' + name).classList.add('active');
+}
+
+// ── FAQ TOGGLE ──
+function toggleFaq(el) {
+  el.classList.toggle('open');
+}
+
+// ── BOT ACTIONS ──
+function openBot() {
+  if (tg) {
+    tg.openTelegramLink('https://t.me/airdro12pbot');
+  } else {
+    window.open('https://t.me/airdro12pbot', '_blank');
+  }
+}
+
+function shareBot() {
+  const text = '🔐 RIOX OTP — Instant Anonymous OTP Verification!\n\nNo personal number needed. Get OTP codes in seconds!\n\n👉 @airdro12pbot';
+  if (tg) {
+    tg.openTelegramLink('https://t.me/share/url?url=https://t.me/airdro12pbot&text=' + encodeURIComponent(text));
+  } else {
+    window.open('https://t.me/share/url?url=https://t.me/airdro12pbot&text=' + encodeURIComponent(text), '_blank');
+  }
+}
+
+function copyLink() {
+  const link = 'https://t.me/airdro12pbot';
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(link).then(showToast);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = link; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta); showToast();
+  }
+}
+
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// Main Button
+if (tg?.MainButton) {
+  tg.MainButton.setText('🚀 Open RIOX OTP Bot');
+  tg.MainButton.setParams({ color: '#00d4c8', text_color: '#000000' });
+  tg.MainButton.show();
+  tg.MainButton.onClick(openBot);
+}
+</script>
+</body>
+</html>
